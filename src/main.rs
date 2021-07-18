@@ -10,6 +10,8 @@ use std::{env, lazy::*, time};
 use structopt::StructOpt;
 use tera::Tera;
 
+const INDEX_TEMPLATE: &str = "index.html.tera";
+
 static COAP_URL: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
 static TERA_DIR: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
 static TERA: SyncLazy<RwLock<Tera>> = SyncLazy::new(|| {
@@ -52,14 +54,11 @@ async fn main() -> std::io::Result<()> {
         .filter_level(loglevel)
         .format_timestamp_secs()
         .init();
-    info!(
-        "pwr-server built from branch: {} commit: {}",
-        env!("GIT_BRANCH"),
-        env!("GIT_COMMIT")
-    );
+    info!("Starting up pwr-server...");
+    info!("Git branch: {}", env!("GIT_BRANCH"));
+    info!("Git commit: {}", env!("GIT_COMMIT"));
     info!("Source timestamp: {}", env!("SOURCE_TIMESTAMP"));
     info!("Compiler version: {}", env!("RUSTC_VERSION"));
-
     {
         let mut u = COAP_URL.write();
         *u = opt.coap_url.clone();
@@ -70,7 +69,7 @@ async fn main() -> std::io::Result<()> {
         *d = opt.template_dir.clone();
     }
     info!(
-        "Have templates: [{}]",
+        "Found templates: [{}]",
         TERA.read()
             .get_template_names()
             .collect::<Vec<_>>()
@@ -94,7 +93,7 @@ async fn index() -> Result<HttpResponse> {
     let mut context = tera::Context::new();
     // we could add variables for the template with context.insert() here
     // but for now, we don't have any (:
-    match TERA.read().render("index.html.tera", &context) {
+    match TERA.read().render(INDEX_TEMPLATE, &context) {
         Err(e) => Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
             .content_type("text/plain")
             .body(format!("Template render error: {}", e))),
