@@ -70,6 +70,7 @@ async fn main() -> std::io::Result<()> {
         *u = opt.coap_url.clone();
     }
     {
+        info!("Template directory: {}", &opt.template_dir);
         let mut d = TERA_DIR.write();
         *d = opt.template_dir.clone();
     }
