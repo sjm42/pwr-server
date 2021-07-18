@@ -30,8 +30,6 @@
    value="POWER OFF"
    style="font-size : 32px; width: 60%; height: 80px;">
   <p></p>
-  <br>
-  <br>
   <p id="pwr_req"></p>
   <br>
 </body>
