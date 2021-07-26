@@ -54,11 +54,11 @@ async fn main() -> std::io::Result<()> {
         .filter_level(loglevel)
         .format_timestamp_secs()
         .init();
-    info!("Starting up pwr-server...");
-    info!("Git branch: {}", env!("GIT_BRANCH"));
-    info!("Git commit: {}", env!("GIT_COMMIT"));
-    info!("Source timestamp: {}", env!("SOURCE_TIMESTAMP"));
-    info!("Compiler version: {}", env!("RUSTC_VERSION"));
+    info!("Starting up pwr-server");
+    debug!("Git branch: {}", env!("GIT_BRANCH"));
+    debug!("Git commit: {}", env!("GIT_COMMIT"));
+    debug!("Source timestamp: {}", env!("SOURCE_TIMESTAMP"));
+    debug!("Compiler version: {}", env!("RUSTC_VERSION"));
     {
         let mut u = COAP_URL.write();
         *u = opt.coap_url.clone();
