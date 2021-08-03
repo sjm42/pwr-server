@@ -6,23 +6,13 @@ use chrono::*;
 use coap::CoAPClient;
 use log::*;
 use parking_lot::*;
-use std::{env, lazy::*, time};
+use std::{env, io, lazy::*, time};
 use structopt::StructOpt;
 use tera::Tera;
 
 const INDEX_TEMPLATE: &str = "index.html.tera";
-
-static COAP_URL: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
-static TERA_DIR: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
-static TERA: SyncLazy<RwLock<Tera>> = SyncLazy::new(|| {
-    RwLock::new(match Tera::new(&format!("{}/*.tera", TERA_DIR.read())) {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!("Tera template parsing error: {}", e);
-            ::std::process::exit(1);
-        }
-    })
-});
+const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
+const TEXT_HTML: &str = "text/html; charset=utf-8";
 
 #[derive(Debug, StructOpt)]
 pub struct GlobalServerOptions {
@@ -38,8 +28,20 @@ pub struct GlobalServerOptions {
     pub template_dir: String,
 }
 
+static COAP_URL: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
+static TERA_DIR: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
+static TERA: SyncLazy<RwLock<Tera>> = SyncLazy::new(|| {
+    RwLock::new(match Tera::new(&format!("{}/*.tera", TERA_DIR.read())) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("Tera template parsing error: {}", e);
+            ::std::process::exit(1);
+        }
+    })
+});
+
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> io::Result<()> {
     let opt = GlobalServerOptions::from_args();
     let loglevel = if opt.trace {
         LevelFilter::Trace
@@ -75,6 +77,14 @@ async fn main() -> std::io::Result<()> {
             .collect::<Vec<_>>()
             .join(", ")
     );
+    if !TERA
+        .read()
+        .get_template_names()
+        .any(|t| t.eq(INDEX_TEMPLATE))
+    {
+        error!("Required template {} not found. Exit.", INDEX_TEMPLATE);
+        return Err(io::Error::new(io::ErrorKind::NotFound, "File not found"));
+    }
 
     HttpServer::new(|| {
         App::new()
@@ -94,11 +104,9 @@ async fn index() -> Result<HttpResponse> {
     // we could add variables for the template with context.insert() here
     // but for now, we don't have any (:
     match TERA.read().render(INDEX_TEMPLATE, &context) {
-        Err(e) => Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-            .content_type("text/plain")
-            .body(format!("Template render error: {}", e))),
+        Err(e) => int_err(format!("Template render error: {}", e)),
         Ok(t) => Ok(HttpResponse::build(StatusCode::OK)
-            .content_type("text/html; charset=utf-8")
+            .content_type(TEXT_HTML)
             .body(t)),
     }
 }
@@ -122,34 +130,33 @@ async fn cmd(path: web::Path<(String,)>) -> Result<HttpResponse> {
         CoAPClient::post_with_timeout(&url, coap_data.into_bytes(), time::Duration::from_secs(5));
 
     match res {
-        Err(e) => Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-            .content_type("text/plain")
-            .body(format!("CoAP error: {:?}", e))),
-
+        Err(e) => int_err(format!("CoAP error: {:?}", e)),
         Ok(resp) => {
             let msg = String::from_utf8_lossy(&resp.message.payload);
             debug!("CoAP reply: \"{}\"", &msg);
             let indata: Vec<&str> = msg.split(':').collect();
             if indata.len() != 2 {
-                return Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-                    .content_type("text/plain")
-                    .body(format!("CoAP error: invalid response: \"{}\"", &msg)));
+                return int_err(format!("CoAP error: invalid response: \"{}\"", &msg));
             }
             let state = if indata[0].eq("0") { "OFF" } else { "ON" };
 
             match indata[1].parse::<i64>() {
-                Err(e) => Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-                    .content_type("text/plain")
-                    .body(format!("CoAP error: {:?}", e))),
+                Err(e) => int_err(format!("CoAP error: {:?}", e)),
                 Ok(changed) => {
                     let ts = NaiveDateTime::from_timestamp(changed, 0);
                     let ts_str = Local.from_utc_datetime(&ts).format("%Y-%m-%d %H:%M:%S %Z");
                     Ok(HttpResponse::build(StatusCode::OK)
-                        .content_type("text/plain")
+                        .content_type(TEXT_PLAIN)
                         .body(format!("Power {}, last change: {}", state, ts_str)))
                 }
             }
         }
     }
+}
+
+fn int_err(e: String) -> Result<HttpResponse> {
+    Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
+        .content_type(TEXT_PLAIN)
+        .body(e))
 }
 // EOF
