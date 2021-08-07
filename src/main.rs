@@ -6,7 +6,7 @@ use chrono::*;
 use coap::CoAPClient;
 use log::*;
 use parking_lot::*;
-use std::{env, io, lazy::*, time};
+use std::{env, fmt::Debug, io, lazy::*, time};
 use structopt::StructOpt;
 use tera::Tera;
 
@@ -136,12 +136,12 @@ async fn cmd(path: web::Path<(String,)>) -> Result<HttpResponse> {
             debug!("CoAP reply: \"{}\"", &msg);
             let indata: Vec<&str> = msg.split(':').collect();
             if indata.len() != 2 {
-                return int_err(format!("CoAP error: invalid response: \"{}\"", &msg));
+                return int_err(format!("CoAP: invalid response: \"{}\"", &msg));
             }
             let state = if indata[0].eq("0") { "OFF" } else { "ON" };
 
             match indata[1].parse::<i64>() {
-                Err(e) => int_err(format!("CoAP error: {:?}", e)),
+                Err(e) => int_err(format!("CoAP response error: {:?}", e)),
                 Ok(changed) => {
                     let ts = NaiveDateTime::from_timestamp(changed, 0);
                     let ts_str = Local.from_utc_datetime(&ts).format("%Y-%m-%d %H:%M:%S %Z");
