@@ -6,7 +6,7 @@ use chrono::*;
 use coap::CoAPClient;
 use log::*;
 use parking_lot::*;
-use std::{env, fmt::Debug, io, lazy::*, time};
+use std::{env, error::Error, fmt::Debug, lazy::*, time};
 use structopt::StructOpt;
 use tera::Tera;
 
@@ -40,8 +40,7 @@ static TERA: SyncLazy<RwLock<Tera>> = SyncLazy::new(|| {
     })
 });
 
-#[actix_web::main]
-async fn main() -> io::Result<()> {
+fn main() -> Result<(), Box<dyn Error>> {
     let opt = GlobalServerOptions::from_args();
     let loglevel = if opt.trace {
         LevelFilter::Trace
@@ -83,19 +82,22 @@ async fn main() -> io::Result<()> {
         .any(|t| t.eq(INDEX_TEMPLATE))
     {
         error!("Required template {} not found. Exit.", INDEX_TEMPLATE);
-        return Err(io::Error::new(io::ErrorKind::NotFound, "File not found"));
+        return Err("File not found".into());
     }
 
-    HttpServer::new(|| {
-        App::new()
-            .wrap(middleware::Logger::default())
-            .service(cmd)
-            .route("/", web::get().to(index))
-            .route("/pwr/", web::get().to(index))
-    })
-    .bind(&opt.listen)?
-    .run()
-    .await
+    actix_web::rt::System::new("pwr-server").block_on(async move {
+        HttpServer::new(|| {
+            App::new()
+                .wrap(middleware::Logger::default())
+                .service(cmd)
+                .route("/", web::get().to(index))
+                .route("/pwr/", web::get().to(index))
+        })
+        .bind(&opt.listen)?
+        .run()
+        .await
+    })?;
+    Ok(())
 }
 
 #[allow(unused_mut)]
