@@ -10,6 +10,7 @@ resolver = "2"
 
 [dependencies]
 actix-web = "*"
+askama = "*"
 chrono = "*"
 coap = "*"
 coap-lite = "*"
@@ -17,7 +18,6 @@ env_logger = "*"
 log = "*"
 parking_lot = "*"
 structopt = "*"
-tera = "*"
 
 [build-dependencies]
 build-data = "*"

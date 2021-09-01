@@ -2,17 +2,24 @@
 #![feature(once_cell)]
 
 use actix_web::{get, http::StatusCode, middleware, web, App, HttpResponse, HttpServer, Result};
+use askama::Template;
 use chrono::*;
 use coap::CoAPClient;
 use log::*;
 use parking_lot::*;
 use std::{env, error::Error, fmt::Debug, lazy::*, time};
 use structopt::StructOpt;
-use tera::Tera;
 
-const INDEX_TEMPLATE: &str = "index.html.tera";
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
 const TEXT_HTML: &str = "text/html; charset=utf-8";
+
+#[derive(Template)]
+#[template(path = "index.html", escape = "none")]
+struct IndexTemplate<'a> {
+    cmd_status: &'a str,
+    cmd_on: &'a str,
+    cmd_off: &'a str,
+}
 
 #[derive(Debug, StructOpt)]
 pub struct GlobalServerOptions {
@@ -24,19 +31,14 @@ pub struct GlobalServerOptions {
     pub listen: String,
     #[structopt(short, long, default_value = "coap://127.0.0.1/")]
     pub coap_url: String,
-    #[structopt(long, default_value = "templates")]
-    pub template_dir: String,
 }
 
 static COAP_URL: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
-static TERA_DIR: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
-static TERA: SyncLazy<RwLock<Tera>> = SyncLazy::new(|| {
-    RwLock::new(match Tera::new(&format!("{}/*.tera", TERA_DIR.read())) {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!("Tera template parsing error: {}", e);
-            ::std::process::exit(1);
-        }
+static TEMPLATE: SyncLazy<RwLock<IndexTemplate>> = SyncLazy::new(|| {
+    RwLock::new(IndexTemplate {
+        cmd_status: "/pwr/cmd/status",
+        cmd_on: "/pwr/cmd/on",
+        cmd_off: "/pwr/cmd/off",
     })
 });
 
@@ -61,28 +63,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     debug!("Source timestamp: {}", env!("SOURCE_TIMESTAMP"));
     debug!("Compiler version: {}", env!("RUSTC_VERSION"));
     {
+        // trigger globals initializations
+        let _ = TEMPLATE.read();
         let mut u = COAP_URL.write();
         *u = opt.coap_url.clone();
-    }
-    {
-        info!("Template directory: {}", &opt.template_dir);
-        let mut d = TERA_DIR.write();
-        *d = opt.template_dir.clone();
-    }
-    info!(
-        "Found templates: [{}]",
-        TERA.read()
-            .get_template_names()
-            .collect::<Vec<_>>()
-            .join(", ")
-    );
-    if !TERA
-        .read()
-        .get_template_names()
-        .any(|t| t.eq(INDEX_TEMPLATE))
-    {
-        error!("Required template {} not found. Exit.", INDEX_TEMPLATE);
-        return Err("File not found".into());
     }
 
     actix_web::rt::System::new("pwr-server").block_on(async move {
@@ -100,12 +84,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[allow(unused_mut)]
 async fn index() -> Result<HttpResponse> {
-    let mut context = tera::Context::new();
-    // we could add variables for the template with context.insert() here
-    // but for now, we don't have any (:
-    match TERA.read().render(INDEX_TEMPLATE, &context) {
+    match TEMPLATE.read().render() {
         Err(e) => int_err(format!("Template render error: {}", e)),
         Ok(t) => Ok(HttpResponse::build(StatusCode::OK)
             .content_type(TEXT_HTML)
