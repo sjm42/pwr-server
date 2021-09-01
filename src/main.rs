@@ -41,6 +41,7 @@ static TEMPLATE: SyncLazy<RwLock<IndexTemplate>> = SyncLazy::new(|| {
         cmd_off: "/pwr/cmd/off",
     })
 });
+static INDEX: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
 
 fn main() -> Result<(), Box<dyn Error>> {
     let opt = GlobalServerOptions::from_args();
@@ -63,8 +64,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     debug!("Source timestamp: {}", env!("SOURCE_TIMESTAMP"));
     debug!("Compiler version: {}", env!("RUSTC_VERSION"));
     {
-        // trigger globals initializations
-        let _ = TEMPLATE.read();
+        // initialize globals
+        let html = TEMPLATE.read().render()?;
+        let mut i = INDEX.write();
+        *i = html;
         let mut u = COAP_URL.write();
         *u = opt.coap_url.clone();
     }
@@ -85,12 +88,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn index() -> Result<HttpResponse> {
-    match TEMPLATE.read().render() {
-        Err(e) => int_err(format!("Template render error: {}", e)),
-        Ok(t) => Ok(HttpResponse::build(StatusCode::OK)
-            .content_type(TEXT_HTML)
-            .body(t)),
-    }
+    Ok(HttpResponse::build(StatusCode::OK)
+        .content_type(TEXT_HTML)
+        .body(&*INDEX.read()))
 }
 
 #[get("/pwr/cmd/{op}")]
