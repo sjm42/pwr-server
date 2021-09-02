@@ -1,13 +1,13 @@
 // main.rs
-#![feature(once_cell)]
 
 use actix_web::{get, http::StatusCode, middleware, web, App, HttpResponse, HttpServer, Result};
 use askama::Template;
 use chrono::*;
 use coap::CoAPClient;
 use log::*;
+use once_cell::sync::Lazy;
 use parking_lot::*;
-use std::{env, error::Error, fmt::Debug, lazy::*, time};
+use std::{env, error::Error, fmt::Debug, time};
 use structopt::StructOpt;
 
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
@@ -33,15 +33,15 @@ pub struct GlobalServerOptions {
     pub coap_url: String,
 }
 
-static COAP_URL: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
-static TEMPLATE: SyncLazy<RwLock<IndexTemplate>> = SyncLazy::new(|| {
+static COAP_URL: Lazy<RwLock<String>> = Lazy::new(|| RwLock::new(String::new()));
+static TEMPLATE: Lazy<RwLock<IndexTemplate>> = Lazy::new(|| {
     RwLock::new(IndexTemplate {
         cmd_status: "/pwr/cmd/status",
         cmd_on: "/pwr/cmd/on",
         cmd_off: "/pwr/cmd/off",
     })
 });
-static INDEX: SyncLazy<RwLock<String>> = SyncLazy::new(|| RwLock::new(String::new()));
+static INDEX: Lazy<RwLock<String>> = Lazy::new(|| RwLock::new(String::new()));
 
 fn main() -> Result<(), Box<dyn Error>> {
     let opt = GlobalServerOptions::from_args();
