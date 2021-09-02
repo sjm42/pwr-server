@@ -7,7 +7,8 @@ use coap::CoAPClient;
 use log::*;
 use once_cell::sync::Lazy;
 use parking_lot::*;
-use std::{env, error::Error, fmt::Debug, time};
+use std::{env, time};
+use std::{error::Error, fmt::Debug};
 use structopt::StructOpt;
 
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
@@ -34,13 +35,6 @@ pub struct GlobalServerOptions {
 }
 
 static COAP_URL: Lazy<RwLock<String>> = Lazy::new(|| RwLock::new(String::new()));
-static TEMPLATE: Lazy<RwLock<IndexTemplate>> = Lazy::new(|| {
-    RwLock::new(IndexTemplate {
-        cmd_status: "/pwr/cmd/status",
-        cmd_on: "/pwr/cmd/on",
-        cmd_off: "/pwr/cmd/off",
-    })
-});
 static INDEX: Lazy<RwLock<String>> = Lazy::new(|| RwLock::new(String::new()));
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -53,7 +47,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         LevelFilter::Info
     };
 
-    // env::set_var("RUST_LOG", "actix_web=debug,actix_server=info");
     env_logger::Builder::new()
         .filter_level(loglevel)
         .format_timestamp_secs()
@@ -65,7 +58,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     debug!("Compiler version: {}", env!("RUSTC_VERSION"));
     {
         // initialize globals
-        let html = TEMPLATE.read().render()?;
+        let html = IndexTemplate {
+            cmd_status: "/pwr/cmd/status",
+            cmd_on: "/pwr/cmd/on",
+            cmd_off: "/pwr/cmd/off",
+        }
+        .render()?;
         let mut i = INDEX.write();
         *i = html;
         let mut u = COAP_URL.write();
@@ -108,10 +106,7 @@ async fn cmd(path: web::Path<(String,)>) -> Result<HttpResponse> {
         url = format!("{}{}", &url_pre, "pwr_get_t");
     }
     debug!("CoAP POST: {} <-- {}", &url, &coap_data);
-    let res =
-        CoAPClient::post_with_timeout(&url, coap_data.into_bytes(), time::Duration::from_secs(5));
-
-    match res {
+    match CoAPClient::post_with_timeout(&url, coap_data.into_bytes(), time::Duration::new(5, 0)) {
         Err(e) => int_err(format!("CoAP error: {:?}", e)),
         Ok(resp) => {
             let msg = String::from_utf8_lossy(&resp.message.payload);
@@ -120,7 +115,7 @@ async fn cmd(path: web::Path<(String,)>) -> Result<HttpResponse> {
             if indata.len() != 2 {
                 return int_err(format!("CoAP: invalid response: \"{}\"", &msg));
             }
-            let state = if indata[0].eq("0") { "OFF" } else { "ON" };
+            let state = if indata[0].eq("1") { "ON" } else { "OFF" };
 
             match indata[1].parse::<i64>() {
                 Err(e) => int_err(format!("CoAP response error: {:?}", e)),
