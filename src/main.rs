@@ -1,15 +1,17 @@
 // main.rs
 
-use actix_web::{get, http::StatusCode, middleware, web, App, HttpResponse, HttpServer, Result};
+use actix_web::{
+    get, http::StatusCode, middleware, web, App, HttpResponse, HttpServer, Responder, Result,
+};
 use askama::Template;
 use chrono::*;
 use coap::CoAPClient;
 use log::*;
-use once_cell::sync::Lazy;
-use parking_lot::*;
-use std::{env, time};
-use std::{error::Error, fmt::Debug};
+use std::{error::Error, time};
 use structopt::StructOpt;
+
+mod startup;
+use startup::*;
 
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
 const TEXT_HTML: &str = "text/html; charset=utf-8";
@@ -22,79 +24,53 @@ struct IndexTemplate<'a> {
     cmd_off: &'a str,
 }
 
-#[derive(Debug, StructOpt)]
-pub struct GlobalServerOptions {
-    #[structopt(short, long)]
-    pub debug: bool,
-    #[structopt(short, long)]
-    pub trace: bool,
-    #[structopt(short, long, default_value = "127.0.0.1:8080")]
-    pub listen: String,
-    #[structopt(short, long, default_value = "coap://127.0.0.1/")]
-    pub coap_url: String,
+#[derive(Clone)]
+struct RuntimeConfig {
+    o: OptsCommon,
+    index_html: String,
 }
 
-static COAP_URL: Lazy<RwLock<String>> = Lazy::new(|| RwLock::new(String::new()));
-static INDEX: Lazy<RwLock<String>> = Lazy::new(|| RwLock::new(String::new()));
-
 fn main() -> Result<(), Box<dyn Error>> {
-    let opt = GlobalServerOptions::from_args();
-    let loglevel = if opt.trace {
-        LevelFilter::Trace
-    } else if opt.debug {
-        LevelFilter::Debug
-    } else {
-        LevelFilter::Info
-    };
+    let mut opts = OptsCommon::from_args();
+    opts.finish()?;
+    start_pgm(&opts, "pwr-server");
 
-    env_logger::Builder::new()
-        .filter_level(loglevel)
-        .format_timestamp_secs()
-        .init();
-    info!("Starting up pwr-server");
-    debug!("Git branch: {}", env!("GIT_BRANCH"));
-    debug!("Git commit: {}", env!("GIT_COMMIT"));
-    debug!("Source timestamp: {}", env!("SOURCE_TIMESTAMP"));
-    debug!("Compiler version: {}", env!("RUSTC_VERSION"));
-    {
-        // initialize globals
-        let html = IndexTemplate {
+    // initialize runtime config
+    let data = web::Data::new(RuntimeConfig {
+        o: opts.clone(),
+        index_html: IndexTemplate {
             cmd_status: "/pwr/cmd/status",
             cmd_on: "/pwr/cmd/on",
             cmd_off: "/pwr/cmd/off",
         }
-        .render()?;
-        let mut i = INDEX.write();
-        *i = html;
-        let mut u = COAP_URL.write();
-        *u = opt.coap_url.clone();
-    }
-
+        .render()?,
+    });
     actix_web::rt::System::new("pwr-server").block_on(async move {
-        HttpServer::new(|| {
+        HttpServer::new(move || {
             App::new()
+                .app_data(data.clone())
                 .wrap(middleware::Logger::default())
                 .service(cmd)
                 .route("/", web::get().to(index))
                 .route("/pwr/", web::get().to(index))
         })
-        .bind(&opt.listen)?
+        .bind(&opts.listen)?
         .run()
         .await
     })?;
     Ok(())
 }
 
-async fn index() -> Result<HttpResponse> {
-    Ok(HttpResponse::build(StatusCode::OK)
+async fn index(data: web::Data<RuntimeConfig>) -> impl Responder {
+    HttpResponse::build(StatusCode::OK)
         .content_type(TEXT_HTML)
-        .body(&*INDEX.read()))
+        .body(data.index_html.clone())
 }
 
 #[get("/pwr/cmd/{op}")]
-async fn cmd(path: web::Path<(String,)>) -> Result<HttpResponse> {
+async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl Responder {
     let (op,) = path.into_inner();
-    let url_pre = COAP_URL.read();
+    let url_pre = &data.o.coap_url;
     let url;
     let coap_data = Utc::now().timestamp().to_string();
 
