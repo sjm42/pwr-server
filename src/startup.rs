@@ -1,7 +1,7 @@
 // startup.rs
 
 use log::*;
-use std::{error::Error, fmt::Debug};
+use std::fmt::Debug;
 
 use structopt::StructOpt;
 
@@ -17,7 +17,7 @@ pub struct OptsCommon {
     pub coap_url: String,
 }
 impl OptsCommon {
-    pub fn finish(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn finish(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
     fn get_loglevel(&self) -> LevelFilter {

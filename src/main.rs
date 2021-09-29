@@ -7,7 +7,7 @@ use askama::Template;
 use chrono::*;
 use coap::CoAPClient;
 use log::*;
-use std::{error::Error, time};
+use std::time;
 use structopt::StructOpt;
 
 mod startup;
@@ -30,7 +30,7 @@ struct RuntimeConfig {
     index_html: String,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let mut opts = OptsCommon::from_args();
     opts.finish()?;
     start_pgm(&opts, "pwr-server");
