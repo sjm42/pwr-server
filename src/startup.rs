@@ -2,7 +2,6 @@
 
 use log::*;
 use std::fmt::Debug;
-
 use structopt::StructOpt;
 
 #[derive(Clone, Debug, StructOpt)]

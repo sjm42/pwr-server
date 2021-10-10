@@ -1,8 +1,7 @@
 // main.rs
 
-use actix_web::{
-    get, http::StatusCode, middleware, web, App, HttpResponse, HttpServer, Responder, Result,
-};
+use actix_web::http::StatusCode;
+use actix_web::{get, middleware, web, App, HttpResponse, HttpServer, Responder, Result};
 use askama::Template;
 use chrono::*;
 use coap::CoAPClient;
