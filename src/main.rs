@@ -70,41 +70,42 @@ async fn index(data: web::Data<RuntimeConfig>) -> impl Responder {
 #[get("/pwr/cmd/{op}")]
 async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl Responder {
     let (op,) = path.into_inner();
-    let url_pre = &data.o.coap_url;
-    let url;
+    let mut coap_url = data.o.coap_url.clone();
     let coap_data = Utc::now().timestamp().to_string();
 
-    if op.eq("on") {
-        url = format!("{}{}", &url_pre, "pwr_on");
-    } else if op.eq("off") {
-        url = format!("{}{}", &url_pre, "pwr_off");
-    } else {
-        url = format!("{}{}", &url_pre, "pwr_get_t");
+    match op.as_str() {
+        "on" => coap_url.push_str("pwr_on"),
+        "off" => coap_url.push_str("pwr_off"),
+        _ => coap_url.push_str("pwr_get_t"),
     }
-    debug!("CoAP POST: {} <-- {}", &url, &coap_data);
-    match CoAPClient::post_with_timeout(&url, coap_data.into_bytes(), time::Duration::new(5, 0)) {
-        Err(e) => int_err(format!("CoAP error: {:?}", e)),
-        Ok(resp) => {
-            let msg = String::from_utf8_lossy(&resp.message.payload);
-            debug!("CoAP reply: \"{}\"", &msg);
-            let indata: Vec<&str> = msg.split(':').collect();
-            if indata.len() != 2 {
-                return int_err(format!("CoAP: invalid response: \"{}\"", &msg));
-            }
-            let state = if indata[0].eq("1") { "ON" } else { "OFF" };
 
-            match indata[1].parse::<i64>() {
-                Err(e) => int_err(format!("CoAP response error: {:?}", e)),
-                Ok(changed) => {
-                    let ts = NaiveDateTime::from_timestamp(changed, 0);
-                    let ts_str = Local.from_utc_datetime(&ts).format("%Y-%m-%d %H:%M:%S %Z");
-                    Ok(HttpResponse::build(StatusCode::OK)
-                        .content_type(TEXT_PLAIN)
-                        .body(format!("Power {}, last change: {}", state, ts_str)))
-                }
-            }
-        }
+    debug!("CoAP POST: {} <-- {}", &coap_url, &coap_data);
+    let coap_result =
+        CoAPClient::post_with_timeout(&coap_url, coap_data.into_bytes(), time::Duration::new(5, 0));
+    if let Err(e) = coap_result {
+        return int_err(format!("CoAP error: {:?}", e));
     }
+    let response = coap_result.unwrap();
+    let msg = String::from_utf8_lossy(&response.message.payload);
+    debug!("CoAP reply: \"{}\"", &msg);
+
+    let indata = msg.split(':').collect::<Vec<&str>>();
+    if indata.len() != 2 {
+        return int_err(format!("CoAP: invalid response: \"{}\"", &msg));
+    }
+    let state = if indata[0].eq("1") { "ON" } else { "OFF" };
+
+    let p_res = indata[1].parse::<i64>();
+    if let Err(e) = p_res {
+        return int_err(format!("CoAP response parse error: {:?}", e));
+    }
+    let changed = p_res.unwrap();
+    let ts_str = Local
+        .from_utc_datetime(&NaiveDateTime::from_timestamp(changed, 0))
+        .format("%Y-%m-%d %H:%M:%S %Z");
+    Ok(HttpResponse::build(StatusCode::OK)
+        .content_type(TEXT_PLAIN)
+        .body(format!("Power {}, last change: {}", state, ts_str)))
 }
 
 fn int_err(e: String) -> Result<HttpResponse> {
