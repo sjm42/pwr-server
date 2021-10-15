@@ -1,7 +1,7 @@
 // main.rs
 
 use actix_web::http::StatusCode;
-use actix_web::{get, middleware, web, App, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{get, middleware, web, App, HttpResponse, HttpServer, Responder};
 use askama::Template;
 use chrono::*;
 use coap::CoAPClient;
@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     start_pgm(&opts, "pwr-server");
 
     // initialize runtime config
-    let data = web::Data::new(RuntimeConfig {
+    let my_runtime_data = web::Data::new(RuntimeConfig {
         o: opts.clone(),
         index_html: IndexTemplate {
             cmd_status: "/pwr/cmd/status",
@@ -44,20 +44,21 @@ fn main() -> anyhow::Result<()> {
         }
         .render()?,
     });
-    actix_web::rt::System::new("pwr-server").block_on(async move {
-        HttpServer::new(move || {
-            App::new()
-                .app_data(data.clone())
-                .wrap(middleware::Logger::default())
-                .service(cmd)
-                .route("/", web::get().to(index))
-                .route("/pwr/", web::get().to(index))
-        })
-        .bind(&opts.listen)?
-        .run()
-        .await
-    })?;
-    Ok(())
+    Ok(
+        actix_web::rt::System::new("pwr-server").block_on(async move {
+            HttpServer::new(move || {
+                App::new()
+                    .app_data(my_runtime_data.clone())
+                    .wrap(middleware::Logger::default())
+                    .service(cmd)
+                    .route("/", web::get().to(index))
+                    .route("/pwr/", web::get().to(index))
+            })
+            .bind(&opts.listen)?
+            .run()
+            .await
+        })?,
+    )
 }
 
 async fn index(data: web::Data<RuntimeConfig>) -> impl Responder {
@@ -69,7 +70,9 @@ async fn index(data: web::Data<RuntimeConfig>) -> impl Responder {
 #[get("/pwr/cmd/{op}")]
 async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl Responder {
     let (op,) = path.into_inner();
-    let mut coap_url = data.o.coap_url.clone();
+
+    let mut coap_url = String::with_capacity(data.o.coap_url.len() + 10);
+    coap_url.push_str(data.o.coap_url.as_str());
     let coap_data = Utc::now().timestamp().to_string();
 
     match op.as_str() {
@@ -107,7 +110,7 @@ async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl
         .body(format!("Power {}, last change: {}", state, ts_str)))
 }
 
-fn int_err(e: String) -> Result<HttpResponse> {
+fn int_err(e: String) -> actix_web::Result<HttpResponse> {
     Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
         .content_type(TEXT_PLAIN)
         .body(e))
