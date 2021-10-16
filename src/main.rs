@@ -6,6 +6,7 @@ use askama::Template;
 use chrono::*;
 use coap::CoAPClient;
 use log::*;
+use std::fmt::Display;
 use std::time;
 use structopt::StructOpt;
 
@@ -95,7 +96,7 @@ async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl
     if indata.len() != 2 {
         return int_err(format!("CoAP: invalid response: \"{}\"", &msg));
     }
-    let state = if indata[0].eq("1") { "ON" } else { "OFF" };
+    let state_str = if indata[0].eq("1") { "ON" } else { "OFF" };
 
     let p_res = indata[1].parse::<i64>();
     if let Err(e) = p_res {
@@ -107,12 +108,12 @@ async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl
         .format("%Y-%m-%d %H:%M:%S %Z");
     Ok(HttpResponse::build(StatusCode::OK)
         .content_type(TEXT_PLAIN)
-        .body(format!("Power {}, last change: {}", state, ts_str)))
+        .body(format!("Power {}, last change: {}", state_str, ts_str)))
 }
 
-fn int_err(e: String) -> actix_web::Result<HttpResponse> {
+fn int_err<S: AsRef<str> + Display>(e: S) -> actix_web::Result<HttpResponse> {
     Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
         .content_type(TEXT_PLAIN)
-        .body(e))
+        .body(e.to_string()))
 }
 // EOF
