@@ -73,7 +73,7 @@ dependencies = [
  "log",
  "mime",
  "percent-encoding",
- "pin-project 1.0.8",
+ "pin-project 1.0.9",
  "rand",
  "regex",
  "serde",
@@ -241,7 +241,7 @@ dependencies = [
  "fxhash",
  "log",
  "mime",
- "pin-project 1.0.8",
+ "pin-project 1.0.9",
  "regex",
  "serde",
  "serde_json",
@@ -1269,11 +1269,11 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "576bc800220cc65dac09e99e97b08b358cfab6e17078de8dc5fee223bd2d0c08"
+checksum = "1622113ce508488160cff04e6abc60960e676d330e1ca0f77c0b8df17c81438f"
 dependencies = [
- "pin-project-internal 1.0.8",
+ "pin-project-internal 1.0.9",
 ]
 
 [[package]]
@@ -1289,9 +1289,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-internal"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e8fe8163d14ce7f0cdac2e040116f22eac817edabff0be91e8aff7e9accf389"
+checksum = "b95af56fee93df76d721d356ac1ca41fccf168bc448eb14049234df764ba3e76"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1354,9 +1354,9 @@ checksum = "dbf0c48bc1d91375ae5c3cd81e3722dff1abcf81a30960240640d223f59fe0e5"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.34"
+version = "1.0.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f84e92c0f7c9d58328b85a78557813e4bd845130db68d7184635344399423b1"
+checksum = "392a54546fda6b7cc663379d0e6ce8b324cf88aecc5a499838e1be9781bdce2e"
 dependencies = [
  "unicode-xid",
 ]
@@ -2002,7 +2002,7 @@ version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
 dependencies = [
- "pin-project 1.0.8",
+ "pin-project 1.0.9",
  "tracing",
 ]
 
