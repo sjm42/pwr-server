@@ -72,7 +72,7 @@ async fn index(data: web::Data<RuntimeConfig>) -> impl Responder {
 async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl Responder {
     let (op,) = path.into_inner();
 
-    let mut coap_url = String::with_capacity(data.o.coap_url.len() + 10);
+    let mut coap_url = String::with_capacity(data.o.coap_url.len() + 16);
     coap_url.push_str(data.o.coap_url.as_str());
     let coap_data = Utc::now().timestamp().to_string();
 
@@ -82,25 +82,25 @@ async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl
         _ => coap_url.push_str("pwr_get_t"),
     }
 
-    debug!("CoAP POST: {} <-- {}", &coap_url, &coap_data);
+    debug!("CoAP POST: {coap_url} <-- {coap_data}");
     let coap_result =
         CoAPClient::post_with_timeout(&coap_url, coap_data.into_bytes(), time::Duration::new(5, 0));
     if let Err(e) = coap_result {
-        return int_err(format!("CoAP error: {:?}", e));
+        return int_err(format!("CoAP error: {e:?}"));
     }
     let response = coap_result.unwrap();
     let msg = String::from_utf8_lossy(&response.message.payload);
-    debug!("CoAP reply: \"{}\"", &msg);
+    debug!("CoAP reply: \"{msg}\"");
 
     let indata = msg.split(':').collect::<Vec<&str>>();
     if indata.len() != 2 {
-        return int_err(format!("CoAP: invalid response: \"{}\"", &msg));
+        return int_err(format!("CoAP: invalid response: \"{msg}\""));
     }
     let state_str = if indata[0].eq("1") { "ON" } else { "OFF" };
 
     let p_res = indata[1].parse::<i64>();
     if let Err(e) = p_res {
-        return int_err(format!("CoAP response parse error: {:?}", e));
+        return int_err(format!("CoAP response parse error: {e:?}"));
     }
     let changed = p_res.unwrap();
     let ts_str = Local
@@ -108,7 +108,7 @@ async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl
         .format("%Y-%m-%d %H:%M:%S %Z");
     Ok(HttpResponse::build(StatusCode::OK)
         .content_type(TEXT_PLAIN)
-        .body(format!("Power {}, last change: {}", state_str, ts_str)))
+        .body(format!("Power {state_str}, last change: {ts_str}")))
 }
 
 fn int_err<S: AsRef<str> + Display>(e: S) -> actix_web::Result<HttpResponse> {
