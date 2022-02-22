@@ -304,9 +304,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.54"
+version = "1.0.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a99269dff3bc004caa411f38845c20303f1e393ca2bd6581576fa3a7f59577d"
+checksum = "159bb86af3a200e19a068f4224eae4c8bb2d0fa054c7e5d1cacd5cef95e684cd"
 
 [[package]]
 name = "askama"
@@ -568,9 +568,9 @@ checksum = "2911526fe9fc3bb90ff13ff52bd5454e93da0685ba8ed105f06bfc0e898fd950"
 
 [[package]]
 name = "coap-lite"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e30817aa19b8f5815bdbe6ee9b752b834a0bb40ef4e7fbd51f61014c9c83b52"
+checksum = "1fa1d1df3de26ab9f13899c4f0a2467d3b018069642dd4ec34b3871b2edb13ad"
 
 [[package]]
 name = "const_fn"
@@ -1422,7 +1422,7 @@ dependencies = [
  "build-data",
  "chrono",
  "coap",
- "coap-lite 0.8.0",
+ "coap-lite 0.8.1",
  "env_logger",
  "log",
  "structopt",
@@ -1535,7 +1535,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
- "semver 1.0.5",
+ "semver 1.0.6",
 ]
 
 [[package]]
@@ -1614,9 +1614,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.5"
+version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0486718e92ec9a68fbed73bb5ef687d71103b142595b406835649bebd33f72c7"
+checksum = "a4a3381e03edd24287172047536f20cabde766e2cd3e65e6b00fb3af51c4f38d"
 
 [[package]]
 name = "semver-parser"
