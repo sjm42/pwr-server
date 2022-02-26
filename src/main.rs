@@ -45,21 +45,19 @@ fn main() -> anyhow::Result<()> {
         }
         .render()?,
     });
-    Ok(
-        actix_web::rt::System::new("pwr-server").block_on(async move {
-            HttpServer::new(move || {
-                App::new()
-                    .app_data(my_runtime_data.clone())
-                    .wrap(middleware::Logger::default())
-                    .service(cmd)
-                    .route("/", web::get().to(index))
-                    .route("/pwr/", web::get().to(index))
-            })
-            .bind(&opts.listen)?
-            .run()
-            .await
-        })?,
-    )
+    Ok(actix_web::rt::System::new().block_on(async move {
+        HttpServer::new(move || {
+            App::new()
+                .app_data(my_runtime_data.clone())
+                .wrap(middleware::Logger::default())
+                .service(cmd)
+                .route("/", web::get().to(index))
+                .route("/pwr/", web::get().to(index))
+        })
+        .bind(&opts.listen)?
+        .run()
+        .await
+    })?)
 }
 
 async fn index(data: web::Data<RuntimeConfig>) -> impl Responder {
