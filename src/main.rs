@@ -1,20 +1,21 @@
 // main.rs
 
-use actix_web::http::StatusCode;
-use actix_web::{get, middleware, web, App, HttpResponse, HttpServer, Responder};
 use askama::Template;
+use axum::{
+    extract::{Extension, Path},
+    http::StatusCode,
+    response::{Html, IntoResponse},
+    routing::get,
+    Router,
+};
 use chrono::*;
 use coap::CoAPClient;
 use log::*;
-use std::fmt::Display;
-use std::time;
+use std::{fmt::Display, net::SocketAddr, sync::Arc, time};
 use structopt::StructOpt;
 
 mod startup;
 use startup::*;
-
-const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
-const TEXT_HTML: &str = "text/html; charset=utf-8";
 
 #[derive(Template)]
 #[template(path = "index.html", escape = "none")]
@@ -24,27 +25,47 @@ struct IndexTemplate<'a> {
     cmd_off: &'a str,
 }
 
-#[derive(Clone)]
-struct RuntimeConfig {
-    o: OptsCommon,
-    index_html: String,
-}
-
 fn main() -> anyhow::Result<()> {
     let mut opts = OptsCommon::from_args();
     opts.finish()?;
     start_pgm(&opts, "pwr-server");
 
-    // initialize runtime config
-    let my_runtime_data = web::Data::new(RuntimeConfig {
-        o: opts.clone(),
-        index_html: IndexTemplate {
-            cmd_status: "/pwr/cmd/status",
-            cmd_on: "/pwr/cmd/on",
-            cmd_off: "/pwr/cmd/off",
-        }
-        .render()?,
+    let index1 = IndexTemplate {
+        cmd_status: "/pwr/cmd/status",
+        cmd_on: "/pwr/cmd/on",
+        cmd_off: "/pwr/cmd/off",
+    }
+    .render()?;
+
+    let addr = opts.listen.parse::<SocketAddr>().unwrap();
+    let shared_state = Arc::new(opts);
+
+    let app = Router::new()
+        .route(
+            "/",
+            get({
+                let index = index1.clone();
+                move || async { Html(index) }
+            }),
+        )
+        .route("/pwr", get(move || async { Html(index1) }))
+        .route(
+            "/pwr/cmd/:op",
+            get({
+                let state = Arc::clone(&shared_state);
+                move |path| cmd(path, Arc::clone(&state))
+            }),
+        );
+    let runtime = tokio::runtime::Runtime::new()?;
+
+    runtime.block_on(async {
+        axum::Server::bind(&addr)
+            .serve(app.into_make_service())
+            .await
+            .unwrap();
     });
+
+    /*
     Ok(actix_web::rt::System::new().block_on(async move {
         HttpServer::new(move || {
             App::new()
@@ -58,20 +79,14 @@ fn main() -> anyhow::Result<()> {
         .run()
         .await
     })?)
+     */
+
+    Ok(())
 }
 
-async fn index(data: web::Data<RuntimeConfig>) -> impl Responder {
-    HttpResponse::build(StatusCode::OK)
-        .content_type(TEXT_HTML)
-        .body(data.index_html.clone())
-}
-
-#[get("/pwr/cmd/{op}")]
-async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl Responder {
-    let (op,) = path.into_inner();
-
-    let mut coap_url = String::with_capacity(data.o.coap_url.len() + 16);
-    coap_url.push_str(data.o.coap_url.as_str());
+async fn cmd(Path(op): Path<String>, state: Arc<OptsCommon>) -> (StatusCode, String) {
+    let mut coap_url = String::with_capacity(state.coap_url.len() + 16);
+    coap_url.push_str(state.coap_url.as_str());
     let coap_data = Utc::now().timestamp().to_string();
 
     match op.as_str() {
@@ -104,14 +119,14 @@ async fn cmd(path: web::Path<(String,)>, data: web::Data<RuntimeConfig>) -> impl
     let ts_str = Local
         .from_utc_datetime(&NaiveDateTime::from_timestamp(changed, 0))
         .format("%Y-%m-%d %H:%M:%S %Z");
-    Ok(HttpResponse::build(StatusCode::OK)
-        .content_type(TEXT_PLAIN)
-        .body(format!("Power {state_str}, last change: {ts_str}")))
+
+    (
+        StatusCode::OK,
+        format!("Power {state_str}, last change: {ts_str}"),
+    )
 }
 
-fn int_err<S: AsRef<str> + Display>(e: S) -> actix_web::Result<HttpResponse> {
-    Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-        .content_type(TEXT_PLAIN)
-        .body(e.to_string()))
+fn int_err<S: AsRef<str> + Display>(e: S) -> (StatusCode, String) {
+    (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
 }
 // EOF
