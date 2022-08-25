@@ -1,8 +1,10 @@
 // startup.rs
+#![allow(dead_code)]
 
 use log::*;
 use std::fmt::Debug;
 use structopt::StructOpt;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Clone, Debug, StructOpt)]
 pub struct OptsCommon {
@@ -30,11 +32,15 @@ impl OptsCommon {
     }
 }
 
-pub fn start_pgm(c: &OptsCommon, desc: &str) {
-    env_logger::Builder::new()
-        .filter_level(c.get_loglevel())
-        .format_timestamp_secs()
+pub fn start_pgm(_c: &OptsCommon, desc: &str) {
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG")
+                .unwrap_or_else(|_| "pwr_server=debug,tower_http=debug".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
         .init();
+
     info!("Starting up {desc}...");
     debug!("Git branch: {}", env!("GIT_BRANCH"));
     debug!("Git commit: {}", env!("GIT_COMMIT"));

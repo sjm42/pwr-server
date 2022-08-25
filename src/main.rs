@@ -1,18 +1,13 @@
 // main.rs
 
 use askama::Template;
-use axum::{
-    extract::{Extension, Path},
-    http::StatusCode,
-    response::{Html, IntoResponse},
-    routing::get,
-    Router,
-};
+use axum::{extract::Path, http::StatusCode, response::Html, routing::get, Router};
 use chrono::*;
 use coap::CoAPClient;
 use log::*;
 use std::{fmt::Display, net::SocketAddr, sync::Arc, time};
 use structopt::StructOpt;
+use tower_http::trace::TraceLayer;
 
 mod startup;
 use startup::*;
@@ -28,7 +23,7 @@ struct IndexTemplate<'a> {
 fn main() -> anyhow::Result<()> {
     let mut opts = OptsCommon::from_args();
     opts.finish()?;
-    start_pgm(&opts, "pwr-server");
+    start_pgm(&opts, "pwr_server");
 
     let index1 = IndexTemplate {
         cmd_status: "/pwr/cmd/status",
@@ -55,7 +50,8 @@ fn main() -> anyhow::Result<()> {
                 let state = Arc::clone(&shared_state);
                 move |path| cmd(path, Arc::clone(&state))
             }),
-        );
+        )
+        .layer(TraceLayer::new_for_http());
     let runtime = tokio::runtime::Runtime::new()?;
 
     runtime.block_on(async {
@@ -64,22 +60,6 @@ fn main() -> anyhow::Result<()> {
             .await
             .unwrap();
     });
-
-    /*
-    Ok(actix_web::rt::System::new().block_on(async move {
-        HttpServer::new(move || {
-            App::new()
-                .app_data(my_runtime_data.clone())
-                .wrap(middleware::Logger::default())
-                .service(cmd)
-                .route("/", web::get().to(index))
-                .route("/pwr/", web::get().to(index))
-        })
-        .bind(&opts.listen)?
-        .run()
-        .await
-    })?)
-     */
 
     Ok(())
 }
