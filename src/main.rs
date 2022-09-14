@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     }
     .render()?;
 
-    let addr = opts.listen.parse::<SocketAddr>().unwrap();
+    let addr = opts.listen.parse::<SocketAddr>()?;
     let shared_state = Arc::new(opts);
 
     let app = Router::new()
@@ -55,10 +55,12 @@ fn main() -> anyhow::Result<()> {
     let runtime = tokio::runtime::Runtime::new()?;
 
     runtime.block_on(async {
-        axum::Server::bind(&addr)
+        if let Err(e) = axum::Server::bind(&addr)
             .serve(app.into_make_service())
             .await
-            .unwrap();
+        {
+            error!("{e}");
+        }
     });
 
     Ok(())
@@ -76,12 +78,17 @@ async fn cmd(Path(op): Path<String>, state: Arc<OptsCommon>) -> (StatusCode, Str
     }
 
     debug!("CoAP POST: {coap_url} <-- {coap_data}");
-    let coap_result =
-        CoAPClient::post_with_timeout(&coap_url, coap_data.into_bytes(), time::Duration::new(5, 0));
-    if let Err(e) = coap_result {
-        return int_err(format!("CoAP error: {e:?}"));
-    }
-    let response = coap_result.unwrap();
+    let response = match CoAPClient::post_with_timeout(
+        &coap_url,
+        coap_data.into_bytes(),
+        time::Duration::new(5, 0),
+    ) {
+        Err(e) => {
+            return int_err(format!("CoAP error: {e:?}"));
+        }
+        Ok(r) => r,
+    };
+
     let msg = String::from_utf8_lossy(&response.message.payload);
     debug!("CoAP reply: \"{msg}\"");
 
@@ -91,11 +98,13 @@ async fn cmd(Path(op): Path<String>, state: Arc<OptsCommon>) -> (StatusCode, Str
     }
     let state_str = if indata[0].eq("1") { "ON" } else { "OFF" };
 
-    let p_res = indata[1].parse::<i64>();
-    if let Err(e) = p_res {
-        return int_err(format!("CoAP response parse error: {e:?}"));
-    }
-    let changed = p_res.unwrap();
+    let changed = match indata[1].parse::<i64>() {
+        Err(e) => {
+            return int_err(format!("CoAP response parse error: {e:?}"));
+        }
+        Ok(p) => p,
+    };
+
     let ts_str = Local
         .from_utc_datetime(&NaiveDateTime::from_timestamp(changed, 0))
         .format("%Y-%m-%d %H:%M:%S %Z");
