@@ -66,6 +66,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+const TS_NONE: &str = "(none)";
 async fn cmd(Path(op): Path<String>, state: Arc<OptsCommon>) -> (StatusCode, String) {
     let mut coap_url = String::with_capacity(state.coap_url.len() + 16);
     coap_url.push_str(state.coap_url.as_str());
@@ -105,9 +106,14 @@ async fn cmd(Path(op): Path<String>, state: Arc<OptsCommon>) -> (StatusCode, Str
         Ok(p) => p,
     };
 
-    let ts_str = Local
-        .from_utc_datetime(&NaiveDateTime::from_timestamp(changed, 0))
-        .format("%Y-%m-%d %H:%M:%S %Z");
+    let ts_str = if changed == 0 {
+        TS_NONE.to_string()
+    } else {
+        NaiveDateTime::from_timestamp_opt(changed, 0).map_or_else(
+            || TS_NONE.to_string(),
+            |ts| ts.format("%Y-%m-%d %H:%M:%S %Z").to_string(),
+        )
+    };
 
     (
         StatusCode::OK,
