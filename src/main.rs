@@ -114,10 +114,9 @@ async fn cmd(Path(op): Path<String>, state: Arc<OptsCommon>) -> (StatusCode, Str
         _ => TS_NONE.to_string(),
     };
 
-    (
-        StatusCode::OK,
-        format!("Power {state_str}, last change: {ts_str}"),
-    )
+    let status = format!("Power {state_str}, last change: {ts_str}");
+    info!("Status: {status}");
+    (StatusCode::OK, status)
 }
 
 fn int_err<S: AsRef<str> + Display>(e: S) -> (StatusCode, String) {
