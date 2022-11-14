@@ -106,13 +106,12 @@ async fn cmd(Path(op): Path<String>, state: Arc<OptsCommon>) -> (StatusCode, Str
         Ok(p) => p,
     };
 
-    let ts_str = if changed == 0 {
-        TS_NONE.to_string()
-    } else {
-        NaiveDateTime::from_timestamp_opt(changed, 0).map_or_else(
-            || TS_NONE.to_string(),
-            |ts| ts.format("%Y-%m-%d %H:%M:%S %Z").to_string(),
-        )
+    let ts_str = match NaiveDateTime::from_timestamp_opt(changed, 0) {
+        Some(naive_ts) if changed != 0 => {
+            let dt = Local.from_utc_datetime(&naive_ts);
+            dt.format("%Y-%m-%d %H:%M:%S %Z").to_string()
+        }
+        _ => TS_NONE.to_string(),
     };
 
     (
