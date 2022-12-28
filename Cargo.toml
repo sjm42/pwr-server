@@ -2,7 +2,7 @@
 
 [package]
 name = "pwr_server"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 resolver = "2"
 
@@ -13,7 +13,6 @@ askama = "0.11"
 axum = "0.6"
 chrono = "0.4"
 coap = "0.12"
-coap-lite = "0.11"
 env_logger = "0.10"
 log = "0.4"
 structopt = "0.3"
@@ -29,7 +28,8 @@ build-data = "0.1"
 
 [profile.release]
 lto = true
-opt-level = 3 #default
+opt-level = "s" # static
+# opt-level = 3 # default
 # opt-level = 'z'  # Optimize for size.
 
 # EOF

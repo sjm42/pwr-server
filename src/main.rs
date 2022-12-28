@@ -9,8 +9,8 @@ use std::{fmt::Display, net::SocketAddr, sync::Arc, time};
 use structopt::StructOpt;
 use tower_http::trace::TraceLayer;
 
-mod startup;
-use startup::*;
+mod config;
+use config::*;
 
 #[derive(Template)]
 #[template(path = "index.html", escape = "none")]
@@ -122,4 +122,5 @@ async fn cmd(Path(op): Path<String>, state: Arc<OptsCommon>) -> (StatusCode, Str
 fn int_err<S: AsRef<str> + Display>(e: S) -> (StatusCode, String) {
     (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
 }
+
 // EOF
