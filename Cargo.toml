@@ -2,7 +2,7 @@
 
 [package]
 name = "pwr_server"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 resolver = "2"
 
@@ -16,7 +16,7 @@ coap = "0.12"
 env_logger = "0.10"
 log = "0.4"
 structopt = "0.3"
-tokio = { version = "1.24", features = ["full"] }
+tokio = { version = "1.25", features = ["full"] }
 tower-http = { version = "0.3", features = ["trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
