@@ -282,9 +282,9 @@ dependencies = [
 
 [[package]]
 name = "coap"
-version = "0.12.1"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbda5c8799f9f005feec60be23c165da8171c8e27cf88775032dd1397d3e67cb"
+checksum = "07c5daf4cfb61969acc3c47b7cd47d72abf99f6a9288449c64ae03c88507d87d"
 dependencies = [
  "bytes",
  "coap-lite",
@@ -304,9 +304,9 @@ dependencies = [
 
 [[package]]
 name = "coap-lite"
-version = "0.9.1"
+version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b4859ead43cef7e14593c5238cb3dd8800f41ade206bdf08c44c51f2d943fd3"
+checksum = "25ca11cbc756cf12eb24824285dbe36d97e4cfea404aaa1240477f3ae091f779"
 dependencies = [
  "lru_time_cache",
 ]
@@ -888,7 +888,7 @@ dependencies = [
 
 [[package]]
 name = "pwr_server"
-version = "0.3.9"
+version = "0.3.10"
 dependencies = [
  "anyhow",
  "askama",
