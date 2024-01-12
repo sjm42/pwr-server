@@ -54,9 +54,8 @@ async fn main() -> anyhow::Result<()> {
         )
         .layer(TraceLayer::new_for_http());
 
-    Ok(axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await?)
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    Ok(axum::serve(listener, app.into_make_service()).await?)
 }
 
 const TS_NONE: &str = "(none)";
